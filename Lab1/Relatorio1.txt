@@ -1,0 +1,269 @@
+João Gabriel Cunha 2211302
+
+
+1) Faça um programa para criar dois processos, o pai escreve seu pid e espera o
+filho terminar e o filho escreve o seu pid e termina.
+
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+
+int main() {
+    
+    int mypid, pid, status;
+
+    printf("PID do processo pai: %d\n", getpid());
+    pid = fork();
+    
+    
+    if (pid==0){
+
+        
+        printf("PID do processo filho: %d\n", getpid());
+        exit(3);
+    }
+
+    else {
+
+        waitpid(-1, &status,0);
+
+    }
+
+    return 0;
+    }
+
+    gcc -o ex1 ex1.c
+    ./ex1
+
+
+    PID do processo pai: 6214
+    PID do processo filho: 6215
+
+//Funcionou, ambos os Pids foram printados.
+
+
+2)Agora, usando a mesma estrutura de processos pai e filho, declare uma
+variável visível ao pai e ao filho, no pai inicialize a variável com1 e imprima seu
+valor antes do fork(). No filho, altere o valor da variável para 5 e imprima o seu
+valor antes do exit(). Agora, no pai, imprima novamente o valor da variável após o
+filho ter alterado a variável - após a waitpid(). Justifique os resultados obtidos.
+
+
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void)
+
+{
+    int var = 1;
+    printf("Valor de var antes do fork: %d\n", var);
+
+    int pid = fork();
+
+    if (pid<0){
+        perror("Erro ao criar o processo filho");
+        exit(1);
+
+    }
+
+    if (pid ==0){
+        var = 5;
+        printf("FIlho: var = %d\n", var);
+        exit(0);
+
+    } 
+    else 
+    {   
+        waitpid(pid,NULL,0);
+        printf("Pai, printado depois do wait: var = %d\n", var);
+
+    }
+
+
+
+    return 0;
+}
+
+    gcc -o ex2 ex2.c
+    ./ex2
+
+    Valor de var antes do fork: 1
+    FIlho: var = 5
+    Pai, printado depois do wait: var = 1
+
+    //O processo pai printa 1, daí depois ele pausa e espera o processo filho terminar, ele atribui 5, printa 5 e encerra, daí o processo pai volta e como ele não fez 
+    //a atribuição de 5, ele printa 1 mesmo.
+
+3) Use o programa anterior para ler e ordenar um vetor de 10 posições. O filho
+ordena o vetor e o pai exibe os dados do vetor antes do fork() e depois do
+waitpid(). Eles usarão o mesmo vetor na memória? Justifique.
+
+#include <stdio.h>
+#include <stdlib.h>
+#include<unistd.h>
+#include<sys/wait.h>
+
+#define TAM 10
+
+//Função para ordenar 
+
+void ordenar(int *vet, int tam) 
+{
+    for (int i = 0; i < tam - 1; i++) 
+    {
+        for (int j = 0; j < tam - i - 1; j++) 
+        {
+            if (vet[j] > vet[j + 1]) 
+            {
+                int temp = vet[j];
+                vet[j] = vet[j + 1];
+                vet[j + 1] = temp;
+            }
+        }
+    }
+}
+
+
+//Função para printar o vetor:
+
+// Função para imprimir vetor
+void print_vetor(int *vet, int tam, char *msg) 
+{
+    printf("%s: [", msg);
+    for (int i = 0; i < tam; i++) {
+        printf("%d ", vet[i]);
+    }
+    printf("]\n");
+}
+
+int main(void)
+{
+
+int vetor[TAM] = {10,9,8,7,6,5,4,3,2,1};
+
+printf("Vetor antes do fork: \n");
+print_vetor(vetor,TAM,"Pai:");
+
+int pid = fork();
+
+if (pid<0)
+{
+    printf("Erro ao criar processo filho");
+    exit(1);
+
+}
+
+if (pid ==0){
+    ordenar(vetor,TAM);
+    print_vetor(vetor, TAM, "Filho ordenado");
+}
+else{
+        waitpid(pid, NULL,0);
+        printf("Pós waitpid(): \n");
+        print_vetor(vetor,TAM,"Pai:");
+}
+
+
+
+
+ return 0;
+}
+
+gcc -o ex3 ex3.c
+./ex3
+
+
+Vetor antes do fork: 
+Pai:: [10 9 8 7 6 5 4 3 2 1 ]
+Filho ordenado: [1 2 3 4 5 6 7 8 9 10 ]
+Pós waitpid(): 
+Pai:: [10 9 8 7 6 5 4 3 2 1 ]
+
+// Não usarão o mesmo vetor, o do filho ordena seu vetor e o do pai continua não ordenado.
+
+
+4) Modifique o programa anterior para que o filho execute um programa elaborado
+por você, que mande imprimir uma mensagem qualquer no vídeo, por exemplo,
+“alo mundo”. Em seguida altere o programa do item 4 para o filho executar o
+programa echo da shell.
+
+//São dois programas e duas saídas..
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include<sys/wait.h>
+
+int main()
+{
+    pid_t pid = fork();
+    if(pid<0){
+
+        perror("Erro ao criar processo filho");
+        exit(1);
+    }
+    if (pid ==0){
+        execl("./alo_mundo","alo_mundo",NULL);
+        perror("Erro ao executar mensagem");
+        exit(1);
+    }
+    else {
+        wait(NULL);
+        printf("Pai: Filho terminou. \n");
+    }
+
+    return 0;
+
+}
+
+gcc -o ex4_prog1 ex4_prog1.c
+
+Alo Mundo
+Pai: Filho terminou. 
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+int main() {
+    pid_t pid = fork();
+
+    if (pid < 0) {
+        perror("Erro ao criar processo filho");
+        exit(1);
+    }
+
+    if (pid == 0) {  // Processo filho
+        execlp("echo", "echo", "Alo Mundo", NULL); // Executa o comando echo
+        perror("Erro ao executar echo");
+        exit(1);
+    } else {  // Processo pai
+        wait(NULL);
+        printf("Pai: Filho terminou.\n");
+    }
+
+    return 0;
+}
+
+gcc -o ex4_prog2 ex4_prog2.c
+
+Alo Mundo
+Pai: Filho terminou.
+
+
+Ambas as formas de printar Alo Mundo terminaram, tanto executando um programa que eu escrevi chamado alo_mundo.c através 
+da funcao execl Quanto printando no terminal direto usando echo através da excelp.
+
+
+
+
+
+
