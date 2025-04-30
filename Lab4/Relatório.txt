@@ -1,0 +1,255 @@
+João Gabriel da Cunha Vasconcellos
+
+Lab 5 Pipes....
+
+1)Faça um programa para criar dois processos
+que se comunicam via pipe. O Pai lê do pipe
+enquanto o filho escreve no pipe. Exiba o resultado
+do que foi escrito e lido.
+
+
+gcc -o ex1 ex1.c
+./ex1
+
+Pai leu: Oieee
+
+
+Neste programa, o pipe() cria um canal de comunicação entre pai e filho. 
+Após o fork(), o filho envia uma mensagem pelo pipe usando write(), 
+e o pai lê a mensagem com read() e a exibe. 
+Cada processo fecha o lado do pipe que não usa para evitar conflitos.
+
+
+
+2) Faça um programa para redirecionar a entrada e
+a saída, lendo os dados de um arquivo e gerando
+a saída em outro. 
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+int main() {
+    int fd_in = open("entrada.txt", O_RDONLY);
+    if (fd_in == -1) {
+        perror("Erro ao abrir entrada.txt");
+        exit(EXIT_FAILURE);
+    }
+
+    int fd_out = open("saida.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd_out == -1) {
+        perror("Erro ao criar/abrir saida.txt");
+        close(fd_in);
+        exit(EXIT_FAILURE);
+    }
+
+    // Redireciona stdin para o arquivo de entrada
+    dup2(fd_in, STDIN_FILENO);
+    // Redireciona stdout para o arquivo de saída
+    dup2(fd_out, STDOUT_FILENO);
+
+    // Agora, scanf e printf vão operar nos arquivos
+    char buffer[100];
+    while (fgets(buffer, sizeof(buffer), stdin)) {
+        printf("Lido: %s", buffer);
+    }
+
+    close(fd_in);
+    close(fd_out);
+
+    return 0;
+}
+
+
+gcc -o ex2 ex2.c
+
+(Conteúdo do arquivo saída.txt)
+Lido: linha 1
+Lido: dado 2
+Lido: mais texto
+
+Neste programa, dup2() redireciona a entrada padrão (stdin) para um arquivo de leitura e a saída padrão 
+(stdout) para um arquivo de escrita. Assim, comandos como fgets() e printf() 
+operam diretamente nesses arquivos. O conteúdo de entrada.txt é lido e redirecionado para saida.txt.
+
+3)Faça um programa para criar um pipe e
+executar dois processos que são utilitários do Unix
+que se comuniquem através do pipe criado, assim
+como a shell faz. Exemplo:
+
+endler$ ps | wc
+ 28 28 310
+
+
+ #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int main() {
+    int fd[2];
+    int pid1, pid2;
+
+    if (pipe(fd) == -1) {
+        perror("Erro ao criar o pipe");
+        exit(EXIT_FAILURE);
+    }
+
+    pid1 = fork();
+    if (pid1 < 0) {
+        perror("Erro ao criar primeiro filho");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid1 == 0) {
+        // Primeiro processo: executa `ps`
+        close(fd[0]);             // Fecha leitura
+        dup2(fd[1], STDOUT_FILENO); // Redireciona stdout para o pipe
+        close(fd[1]);
+
+        execlp("ps", "ps", NULL);
+        perror("Erro ao executar ps");
+        exit(EXIT_FAILURE);
+    }
+
+    pid2 = fork();
+    if (pid2 < 0) {
+        perror("Erro ao criar segundo filho");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid2 == 0) {
+        // Segundo processo: executa `wc`
+        close(fd[1]);             // Fecha escrita
+        dup2(fd[0], STDIN_FILENO); // Redireciona stdin para o pipe
+        close(fd[0]);
+
+        execlp("wc", "wc", NULL);
+        perror("Erro ao executar wc");
+        exit(EXIT_FAILURE);
+    }
+
+    // Processo pai fecha tudo
+    close(fd[0]);
+    close(fd[1]);
+
+    // Espera os dois filhos
+    wait(NULL);
+    wait(NULL);
+
+    return 0;
+}
+
+gcc -o ex3 ex3.c
+./ex3
+
+
+5      20     149
+
+Este programa simula o comando ps | wc, redirecionando 
+a saída de ps para a entrada de wc usando um pipe.
+ Cada comando roda em um processo filho. Com dup2(), 
+conectamos os descritores do pipe aos fluxos padrão, 
+permitindo que os programas se comuniquem diretamente.
+
+4)Faça um programa que cria dois processos
+leitores e um processo escritor em uma mesma
+pipe. Faça o escritor dormir metade do tempo
+dos leitores, e mostre como os leitores
+consomem os dados produzidos pelo escritor.
+Obs: não force uma alternância controlada por
+SIGSTOP/SIGCONT. 
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/wait.h>
+
+int main() {
+    int fd[2];
+    pipe(fd);
+
+    pid_t leitor1, leitor2, escritor;
+
+    escritor = fork();
+    if (escritor == 0) {
+        // Processo escritor
+        close(fd[0]); // Fecha leitura
+
+        for (int i = 0; i < 5; i++) {
+            char mensagem[50];
+            snprintf(mensagem, sizeof(mensagem), "Mensagem %d\n", i + 1);
+            write(fd[1], mensagem, strlen(mensagem));
+            printf("[Escritor] Enviou: %s", mensagem);
+            usleep(300000); // 0.3s — metade do tempo dos leitores
+        }
+
+        close(fd[1]);
+        exit(0);
+    }
+
+    leitor1 = fork();
+    if (leitor1 == 0) {
+        // Processo leitor 1
+        close(fd[1]); // Fecha escrita
+        char buffer[100];
+
+        while (read(fd[0], buffer, sizeof(buffer)) > 0) {
+            printf("[Leitor 1] Recebeu: %s", buffer);
+            usleep(600000); // 0.6s
+        }
+
+        close(fd[0]);
+        exit(0);
+    }
+
+    leitor2 = fork();
+    if (leitor2 == 0) {
+        // Processo leitor 2
+        close(fd[1]); // Fecha escrita
+        char buffer[100];
+
+        while (read(fd[0], buffer, sizeof(buffer)) > 0) {
+            printf("[Leitor 2] Recebeu: %s", buffer);
+            usleep(600000); // 0.6s
+        }
+
+        close(fd[0]);
+        exit(0);
+    }
+
+    // Pai fecha tudo
+    close(fd[0]);
+    close(fd[1]);
+
+    wait(NULL);
+    wait(NULL);
+    wait(NULL);
+
+    return 0;
+}
+
+gcc -o ex4 ex4.c
+./ex4
+
+
+
+[Escritor] Enviou: Mensagem 1
+[Leitor 2] Recebeu: Mensagem 1
+[Escritor] Enviou: Mensagem 2
+[Leitor 1] Recebeu: Mensagem 2
+[Escritor] Enviou: Mensagem 3
+[Leitor 1] Recebeu: Mensagem 3
+[Escritor] Enviou: Mensagem 4
+[Leitor 2] Recebeu: Mensagem 4
+[Escritor] Enviou: Mensagem 5
+[Leitor 2] Recebeu: Mensagem 5
+
+
+Esse programa cria um escritor e dois leitores que compartilham a mesma pipe. 
+O escritor envia mensagens em intervalos menores que os leitores, o que permite observar 
+como os leitores consomem os dados conforme acordam. A alternância entre os leitores ocorre naturalmente, 
+sem controle explícito.
+
