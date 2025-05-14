@@ -1,0 +1,576 @@
+João Gabriel da Cunha Vasconcellos 2211302
+
+1) Execute o programa Corrida de Sapo algumas vezes e
+analise os resultados sobre a ordem de chegada dos
+sapos. Obs: compile com a opção –lpthread
+
+
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define NUM_THREADS 5
+#define PULO_MAXIMO 10
+#define DESCANSO_MAXIMO 1
+#define DISTANCIA_PARA_CORRER 100
+
+int classificacao = 1;
+
+void *Correr(void *sapo) {
+    int pulos = 0;
+    int distanciaJaCorrida = 0;
+
+    while (distanciaJaCorrida < DISTANCIA_PARA_CORRER) {
+        int pulo = rand() % PULO_MAXIMO + 1;
+        distanciaJaCorrida += pulo;
+        pulos++;
+        printf("Sapo %d pulou. Total: %d metros\n", (int)(size_t)sapo, distanciaJaCorrida);
+        sleep(rand() % (DESCANSO_MAXIMO + 1));
+    }
+
+    printf("🏁 Sapo %d chegou na posição %d com %d pulos!\n", (int)(size_t)sapo, classificacao, pulos);
+    classificacao++;
+
+    pthread_exit(NULL);
+}
+
+int main() {
+    pthread_t threads[NUM_THREADS];
+    srand(time(NULL));
+    printf("Corrida iniciada!\n");
+
+    for (int t = 0; t < NUM_THREADS; t++) {
+        pthread_create(&threads[t], NULL, Correr, (void *)(size_t)t);
+    }
+
+    for (int t = 0; t < NUM_THREADS; t++) {
+        pthread_join(threads[t], NULL);
+    }
+
+    printf("Corrida encerrada.\n");
+    return 0;
+}
+
+
+gcc -o ex1 ex1.ch
+./ex1
+
+
+Corrida iniciada!
+Sapo 0 pulou. Total: 4 metros
+Sapo 1 pulou. Total: 1 metros
+Sapo 0 pulou. Total: 13 metros
+Sapo 2 pulou. Total: 8 metros
+Sapo 4 pulou. Total: 8 metros
+Sapo 3 pulou. Total: 8 metros
+Sapo 0 pulou. Total: 17 metros
+Sapo 2 pulou. Total: 18 metros
+Sapo 4 pulou. Total: 12 metros
+Sapo 2 pulou. Total: 26 metros
+Sapo 0 pulou. Total: 20 metros
+Sapo 4 pulou. Total: 14 metros
+Sapo 0 pulou. Total: 29 metros
+Sapo 1 pulou. Total: 5 metros
+Sapo 3 pulou. Total: 18 metros
+Sapo 2 pulou. Total: 34 metros
+Sapo 2 pulou. Total: 37 metros
+Sapo 0 pulou. Total: 35 metros
+Sapo 4 pulou. Total: 23 metros
+Sapo 4 pulou. Total: 30 metros
+Sapo 2 pulou. Total: 42 metros
+Sapo 0 pulou. Total: 39 metros
+Sapo 2 pulou. Total: 45 metros
+Sapo 4 pulou. Total: 32 metros
+Sapo 2 pulou. Total: 53 metros
+Sapo 4 pulou. Total: 41 metros
+Sapo 2 pulou. Total: 59 metros
+Sapo 4 pulou. Total: 48 metros
+Sapo 1 pulou. Total: 14 metros
+Sapo 4 pulou. Total: 54 metros
+Sapo 1 pulou. Total: 18 metros
+Sapo 3 pulou. Total: 24 metros
+Sapo 1 pulou. Total: 20 metros
+Sapo 3 pulou. Total: 29 metros
+Sapo 1 pulou. Total: 26 metros
+Sapo 1 pulou. Total: 31 metros
+Sapo 0 pulou. Total: 49 metros
+Sapo 0 pulou. Total: 57 metros
+Sapo 2 pulou. Total: 61 metros
+Sapo 0 pulou. Total: 60 metros
+Sapo 0 pulou. Total: 66 metros
+Sapo 0 pulou. Total: 68 metros
+Sapo 4 pulou. Total: 55 metros
+Sapo 4 pulou. Total: 56 metros
+Sapo 4 pulou. Total: 57 metros
+Sapo 3 pulou. Total: 32 metros
+Sapo 1 pulou. Total: 32 metros
+Sapo 1 pulou. Total: 40 metros
+Sapo 2 pulou. Total: 69 metros
+Sapo 0 pulou. Total: 70 metros
+Sapo 4 pulou. Total: 63 metros
+Sapo 2 pulou. Total: 74 metros
+Sapo 3 pulou. Total: 41 metros
+Sapo 0 pulou. Total: 77 metros
+Sapo 3 pulou. Total: 44 metros
+Sapo 1 pulou. Total: 45 metros
+Sapo 1 pulou. Total: 49 metros
+Sapo 4 pulou. Total: 67 metros
+Sapo 3 pulou. Total: 50 metros
+Sapo 0 pulou. Total: 85 metros
+Sapo 1 pulou. Total: 56 metros
+Sapo 2 pulou. Total: 81 metros
+Sapo 3 pulou. Total: 59 metros
+Sapo 4 pulou. Total: 75 metros
+Sapo 3 pulou. Total: 67 metros
+Sapo 0 pulou. Total: 95 metros
+Sapo 1 pulou. Total: 60 metros
+Sapo 3 pulou. Total: 72 metros
+Sapo 4 pulou. Total: 85 metros
+Sapo 0 pulou. Total: 98 metros
+Sapo 4 pulou. Total: 95 metros
+Sapo 2 pulou. Total: 85 metros
+Sapo 0 pulou. Total: 108 metros
+Sapo 4 pulou. Total: 101 metros
+Sapo 2 pulou. Total: 94 metros
+🏁 Sapo 0 chegou na posição 1 com 18 pulos!
+Sapo 3 pulou. Total: 75 metros
+Sapo 1 pulou. Total: 62 metros
+🏁 Sapo 4 chegou na posição 2 com 18 pulos!
+Sapo 2 pulou. Total: 103 metros
+Sapo 1 pulou. Total: 64 metros
+🏁 Sapo 2 chegou na posição 3 com 16 pulos!
+Sapo 1 pulou. Total: 74 metros
+Sapo 3 pulou. Total: 85 metros
+Sapo 3 pulou. Total: 91 metros
+Sapo 1 pulou. Total: 76 metros
+Sapo 1 pulou. Total: 84 metros
+Sapo 3 pulou. Total: 100 metros
+🏁 Sapo 3 chegou na posição 4 com 15 pulos!
+Sapo 1 pulou. Total: 91 metros
+Sapo 1 pulou. Total: 94 metros
+Sapo 1 pulou. Total: 99 metros
+Sapo 1 pulou. Total: 108 metros
+🏁 Sapo 1 chegou na posição 5 com 22 pulos!
+Corrida encerrada.
+
+
+Neste programa, cada sapo é representado por uma thread que avança com pulos aleatórios até completar a corrida.
+ A classificação final é exibida sem sincronização, 
+o que pode gerar condições de corrida e resultados inconsistentes na ordem de chegada.
+
+
+2)Usando mutex, modifique o programa Corrida de Sampo
+para que o problema identificado anteriormente não
+ocorra. 
+
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define NUM_THREADS 5
+#define PULO_MAXIMO 10
+#define DESCANSO_MAXIMO 1
+#define DISTANCIA_PARA_CORRER 100
+
+int classificacao = 1;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
+void *Correr(void *sapo) {
+    int pulos = 0;
+    int distanciaJaCorrida = 0;
+
+    while (distanciaJaCorrida < DISTANCIA_PARA_CORRER) {
+        int pulo = rand() % PULO_MAXIMO + 1;
+        distanciaJaCorrida += pulo;
+        pulos++;
+        printf("Sapo %d pulou. Total: %d metros\n", (int)(size_t)sapo, distanciaJaCorrida);
+        sleep(rand() % (DESCANSO_MAXIMO + 1));
+    }
+
+    pthread_mutex_lock(&lock);
+    printf("🏁 Sapo %d chegou na posição %d com %d pulos!\n", (int)(size_t)sapo, classificacao, pulos);
+    classificacao++;
+    pthread_mutex_unlock(&lock);
+
+    pthread_exit(NULL);
+}
+
+int main() {
+    pthread_t threads[NUM_THREADS];
+    srand(time(NULL));
+    printf("Corrida iniciada!\n");
+
+    for (int t = 0; t < NUM_THREADS; t++) {
+        pthread_create(&threads[t], NULL, Correr, (void *)(size_t)t);
+    }
+
+    for (int t = 0; t < NUM_THREADS; t++) {
+        pthread_join(threads[t], NULL);
+    }
+
+    printf("Corrida encerrada.\n");
+    pthread_mutex_destroy(&lock);
+    return 0;
+}
+
+
+gcc -o ex2 ex2.c
+./ex2
+
+Corrida iniciada!
+Sapo 1 pulou. Total: 3 metros
+Sapo 2 pulou. Total: 6 metros
+Sapo 0 pulou. Total: 10 metros
+Sapo 3 pulou. Total: 2 metros
+Sapo 0 pulou. Total: 19 metros
+Sapo 4 pulou. Total: 4 metros
+Sapo 0 pulou. Total: 23 metros
+Sapo 4 pulou. Total: 5 metros
+Sapo 0 pulou. Total: 26 metros
+Sapo 0 pulou. Total: 35 metros
+Sapo 1 pulou. Total: 11 metros
+Sapo 2 pulou. Total: 8 metros
+Sapo 4 pulou. Total: 7 metros
+Sapo 3 pulou. Total: 4 metros
+Sapo 1 pulou. Total: 16 metros
+Sapo 0 pulou. Total: 38 metros
+Sapo 3 pulou. Total: 14 metros
+Sapo 2 pulou. Total: 9 metros
+Sapo 2 pulou. Total: 10 metros
+Sapo 2 pulou. Total: 12 metros
+Sapo 2 pulou. Total: 15 metros
+Sapo 2 pulou. Total: 16 metros
+Sapo 2 pulou. Total: 23 metros
+Sapo 2 pulou. Total: 33 metros
+Sapo 2 pulou. Total: 35 metros
+Sapo 1 pulou. Total: 22 metros
+Sapo 4 pulou. Total: 8 metros
+Sapo 1 pulou. Total: 32 metros
+Sapo 0 pulou. Total: 39 metros
+Sapo 3 pulou. Total: 23 metros
+Sapo 3 pulou. Total: 30 metros
+Sapo 4 pulou. Total: 11 metros
+Sapo 2 pulou. Total: 42 metros
+Sapo 1 pulou. Total: 38 metros
+Sapo 1 pulou. Total: 42 metros
+Sapo 0 pulou. Total: 46 metros
+Sapo 3 pulou. Total: 39 metros
+Sapo 1 pulou. Total: 50 metros
+Sapo 4 pulou. Total: 20 metros
+Sapo 0 pulou. Total: 52 metros
+Sapo 4 pulou. Total: 24 metros
+Sapo 0 pulou. Total: 58 metros
+Sapo 4 pulou. Total: 27 metros
+Sapo 3 pulou. Total: 48 metros
+Sapo 0 pulou. Total: 65 metros
+Sapo 4 pulou. Total: 28 metros
+Sapo 2 pulou. Total: 47 metros
+Sapo 1 pulou. Total: 58 metros
+Sapo 4 pulou. Total: 37 metros
+Sapo 0 pulou. Total: 67 metros
+Sapo 2 pulou. Total: 55 metros
+Sapo 3 pulou. Total: 52 metros
+Sapo 3 pulou. Total: 59 metros
+Sapo 1 pulou. Total: 65 metros
+Sapo 4 pulou. Total: 43 metros
+Sapo 1 pulou. Total: 71 metros
+Sapo 4 pulou. Total: 45 metros
+Sapo 1 pulou. Total: 77 metros
+Sapo 2 pulou. Total: 61 metros
+Sapo 0 pulou. Total: 69 metros
+Sapo 3 pulou. Total: 68 metros
+Sapo 4 pulou. Total: 51 metros
+Sapo 1 pulou. Total: 81 metros
+Sapo 3 pulou. Total: 77 metros
+Sapo 1 pulou. Total: 83 metros
+Sapo 1 pulou. Total: 91 metros
+Sapo 0 pulou. Total: 78 metros
+Sapo 2 pulou. Total: 69 metros
+Sapo 2 pulou. Total: 73 metros
+Sapo 4 pulou. Total: 59 metros
+Sapo 3 pulou. Total: 78 metros
+Sapo 1 pulou. Total: 97 metros
+Sapo 4 pulou. Total: 61 metros
+Sapo 1 pulou. Total: 100 metros
+Sapo 2 pulou. Total: 76 metros
+Sapo 0 pulou. Total: 82 metros
+🏁 Sapo 1 chegou na posição 1 com 17 pulos!
+Sapo 0 pulou. Total: 90 metros
+Sapo 0 pulou. Total: 96 metros
+Sapo 3 pulou. Total: 83 metros
+Sapo 4 pulou. Total: 69 metros
+Sapo 4 pulou. Total: 71 metros
+Sapo 0 pulou. Total: 104 metros
+Sapo 2 pulou. Total: 79 metros
+🏁 Sapo 0 chegou na posição 2 com 18 pulos!
+Sapo 2 pulou. Total: 80 metros
+Sapo 2 pulou. Total: 88 metros
+Sapo 3 pulou. Total: 88 metros
+Sapo 3 pulou. Total: 93 metros
+Sapo 4 pulou. Total: 75 metros
+Sapo 2 pulou. Total: 91 metros
+Sapo 2 pulou. Total: 97 metros
+Sapo 3 pulou. Total: 101 metros
+Sapo 4 pulou. Total: 76 metros
+Sapo 4 pulou. Total: 79 metros
+Sapo 2 pulou. Total: 102 metros
+🏁 Sapo 2 chegou na posição 3 com 23 pulos!
+🏁 Sapo 3 chegou na posição 4 com 16 pulos!
+Sapo 4 pulou. Total: 80 metros
+Sapo 4 pulou. Total: 83 metros
+Sapo 4 pulou. Total: 88 metros
+Sapo 4 pulou. Total: 89 metros
+Sapo 4 pulou. Total: 99 metros
+Sapo 4 pulou. Total: 105 metros
+🏁 Sapo 4 chegou na posição 5 com 26 pulos!
+Corrida encerrada.
+
+
+
+
+Agora usamos um mutex para proteger a região crítica onde a classificação é atribuída.
+Assim, garantimos que apenas uma thread por vez altera e imprime a posição 
+de chegada, eliminando condições de corrida. Isso garante a integridade e consistência da ordem final dos sapos.
+
+3) Usando threads, escreva um programa C que implemente o
+problema do produtor/consumidor. O produtor deve produzir
+dados (números inteiros pseudo-aleatórios) a cada 1 segundo
+colocando-os em uma fila (buffer, implementação circular). O
+consumidor deve retirar dados da fila a cada 2 segundos. O
+tamanho máximo da fila deve ser de 8 elementos (MAXFILA) e
+tanto o produtor como o consumidor devem produzir/consumir
+64 elementos (números inteiros de 1 a 64, por exemplo)
+evitando condições de corrida. Variáveis compartilhadas entre
+threads são simplesmente variáveis globais. 
+
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define MAXFILA 8
+#define TOTAL_ITENS 64
+
+int buffer[MAXFILA];
+int in = 0, out = 0;
+int count = 0;
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t pode_produzir = PTHREAD_COND_INITIALIZER;
+pthread_cond_t pode_consumir = PTHREAD_COND_INITIALIZER;
+
+void *produtor(void *arg) {
+    for (int i = 1; i <= TOTAL_ITENS; i++) {
+        pthread_mutex_lock(&mutex);
+
+        while (count == MAXFILA)
+            pthread_cond_wait(&pode_produzir, &mutex);
+
+        buffer[in] = i;
+        in = (in + 1) % MAXFILA;
+        count++;
+
+        printf("Produzido: %d\n", i);
+
+        pthread_cond_signal(&pode_consumir);
+        pthread_mutex_unlock(&mutex);
+
+        sleep(1); // produz a cada 1s
+    }
+    pthread_exit(NULL);
+}
+
+void *consumidor(void *arg) {
+    for (int i = 0; i < TOTAL_ITENS; i++) {
+        pthread_mutex_lock(&mutex);
+
+        while (count == 0)
+            pthread_cond_wait(&pode_consumir, &mutex);
+
+        int item = buffer[out];
+        out = (out + 1) % MAXFILA;
+        count--;
+
+        printf("Consumido: %d\n", item);
+
+        pthread_cond_signal(&pode_produzir);
+        pthread_mutex_unlock(&mutex);
+
+        sleep(2); // consome a cada 2s
+    }
+    pthread_exit(NULL);
+}
+
+int main() {
+    pthread_t th_produtor, th_consumidor;
+
+    pthread_create(&th_produtor, NULL, produtor, NULL);
+    pthread_create(&th_consumidor, NULL, consumidor, NULL);
+
+    pthread_join(th_produtor, NULL);
+    pthread_join(th_consumidor, NULL);
+
+    printf("Produção e consumo finalizados!\n");
+
+    pthread_mutex_destroy(&mutex);
+    pthread_cond_destroy(&pode_produzir);
+    pthread_cond_destroy(&pode_consumir);
+
+    return 0;
+}
+
+
+gcc -o ex3 ex3.C
+./ex3
+
+Produzido: 1
+Consumido: 1
+Produzido: 2
+Produzido: 3
+Consumido: 2
+...
+Produção e consumo finalizados!
+
+
+Neste programa, o produtor insere inteiros sequenciais em um buffer circular a cada 1 segundo, enquanto o consumidor os retira a cada 2 segundos. 
+Mutexes garantem a exclusão mútua no acesso ao buffer, e as variáveis de condição (pthread_cond_t) controlam
+a espera ativa quando o buffer está cheio ou vazio, evitando condições de corrida
+
+
+4) Modifique o programa anterior, para que haja 2 (ou mais)
+threads consumidor e 2 (ou mais) threads produtor. O que muda
+em relação ao uso do mutex e da variável de condição
+
+
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define MAXFILA 8
+#define TOTAL_ITENS 64
+#define NUM_PRODUTORES 2
+#define NUM_CONSUMIDORES 2
+
+int buffer[MAXFILA];
+int in = 0, out = 0;
+int count = 0;
+int itens_produzidos = 0;
+int itens_consumidos = 0;
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t pode_produzir = PTHREAD_COND_INITIALIZER;
+pthread_cond_t pode_consumir = PTHREAD_COND_INITIALIZER;
+
+void *produtor(void *arg) {
+    int id = (int)(size_t)arg;
+    while (1) {
+        pthread_mutex_lock(&mutex);
+
+        if (itens_produzidos >= TOTAL_ITENS) {
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
+
+        while (count == MAXFILA)
+            pthread_cond_wait(&pode_produzir, &mutex);
+
+        if (itens_produzidos >= TOTAL_ITENS) {
+            pthread_cond_broadcast(&pode_consumir);
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
+
+        int item = ++itens_produzidos;
+        buffer[in] = item;
+        in = (in + 1) % MAXFILA;
+        count++;
+
+        printf("Produtor %d produziu: %d\n", id, item);
+
+        pthread_cond_signal(&pode_consumir);
+        pthread_mutex_unlock(&mutex);
+
+        sleep(1); // produz a cada 1s
+    }
+    pthread_exit(NULL);
+}
+
+void *consumidor(void *arg) {
+    int id = (int)(size_t)arg;
+    while (1) {
+        pthread_mutex_lock(&mutex);
+
+        if (itens_consumidos >= TOTAL_ITENS) {
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
+
+        while (count == 0)
+            pthread_cond_wait(&pode_consumir, &mutex);
+
+        if (itens_consumidos >= TOTAL_ITENS) {
+            pthread_cond_broadcast(&pode_produzir);
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
+
+        int item = buffer[out];
+        out = (out + 1) % MAXFILA;
+        count--;
+        itens_consumidos++;
+
+        printf("Consumidor %d consumiu: %d\n", id, item);
+
+        pthread_cond_signal(&pode_produzir);
+        pthread_mutex_unlock(&mutex);
+
+        sleep(2); // consome a cada 2s
+    }
+    pthread_exit(NULL);
+}
+
+int main() {
+    pthread_t produtores[NUM_PRODUTORES], consumidores[NUM_CONSUMIDORES];
+
+    for (int i = 0; i < NUM_PRODUTORES; i++)
+        pthread_create(&produtores[i], NULL, produtor, (void *)(size_t)i);
+
+    for (int i = 0; i < NUM_CONSUMIDORES; i++)
+        pthread_create(&consumidores[i], NULL, consumidor, (void *)(size_t)i);
+
+    for (int i = 0; i < NUM_PRODUTORES; i++)
+        pthread_join(produtores[i], NULL);
+
+    for (int i = 0; i < NUM_CONSUMIDORES; i++)
+        pthread_join(consumidores[i], NULL);
+
+    printf("Todos os itens foram produzidos e consumidos!\n");
+
+    pthread_mutex_destroy(&mutex);
+    pthread_cond_destroy(&pode_produzir);
+    pthread_cond_destroy(&pode_consumir);
+
+    return 0;
+}
+
+gcc -o ex4 ex4.C
+./ex4
+
+
+Produtor 0 produziu: 1
+Produtor 1 produziu: 2
+Consumidor 0 consumiu: 1
+Produtor 0 produziu: 3
+Consumidor 1 consumiu: 2
+Produtor 1 produziu: 4
+Consumidor 0 consumiu: 3
+...
+Todos os itens foram produzidos e consumidos!
+
+
+Usei múltiplos produtores e consumidores com sincronização via mutex e variáveis de condição. 
+Cada thread compartilha um buffer circular limitado e evita conflitos ao produzir ou consumir. 
+O controle total garante que exatamente 64 itens sejam processados sem erros.
