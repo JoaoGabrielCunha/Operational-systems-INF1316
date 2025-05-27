@@ -1,0 +1,344 @@
+//João Gabriel da Cunha Vasconcellos
+1. Abra duas seções de terminais
+l Na primeira, execute um programa que fica em
+loop lendo de uma FIFO para depois escrever na
+saída padrão (tela)
+l Na segunda, execute um programa que fica lendo
+da entrada padrão (teclado) e depois escreve na
+mesma FIFO 
+
+
+// Leitor
+#include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#define FIFO_NAME "meu_fifo"
+
+int main() {
+    int fd;
+    char ch;
+
+    // Abre FIFO para leitura (bloqueante)
+    fd = open(FIFO_NAME, O_RDONLY);
+    if (fd < 0) {
+        perror("Erro ao abrir FIFO para leitura");
+        return 1;
+    }
+
+    printf("Leitor iniciado... aguardando mensagens.\n");
+
+    // Loop infinito lendo e escrevendo na tela
+    while (read(fd, &ch, sizeof(ch)) > 0) {
+        putchar(ch);
+        fflush(stdout);
+    }
+
+    printf("\nLeitor finalizado.\n");
+    close(fd);
+    return 0;
+}
+
+// Escritor
+#include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#define FIFO_NAME "meu_fifo"
+
+int main() {
+    int fd;
+    char ch;
+
+    // Abre FIFO para escrita (bloqueante)
+    fd = open(FIFO_NAME, O_WRONLY);
+    if (fd < 0) {
+        perror("Erro ao abrir FIFO para escrita");
+        return 1;
+    }
+
+    printf("Escritor iniciado... digite algo:\n");
+
+    // Loop infinito lendo do teclado e escrevendo na FIFO
+    while ((ch = getchar()) != EOF) {
+        write(fd, &ch, sizeof(ch));
+    }
+
+    printf("Escritor finalizado.\n");
+    close(fd);
+    return 0;
+}
+
+// CriaFIFO
+#include <stdio.h>
+#include <sys/stat.h>
+
+#define FIFO_NAME "meu_fifo"
+
+int main() {
+    if (mkfifo(FIFO_NAME, 0666) == 0) {
+        printf("FIFO criada com sucesso.\n");
+    } else {
+        perror("Erro ao criar FIFO");
+    }
+    return 0;
+}
+
+gcc -o ex1_criaFIFO.c ex1_criaFIFO
+gcc -o ex1_escritor.c ex1_escritor
+gcc -o ex1_leitor.c ex1_leitor
+
+./ex1_criaFIFO  # ou mkfifo meu_fifo
+./ex1_leitor
+
+./ex1_escritor
+
+FIFO criada com sucesso.
+Leitor iniciado... aguardando mensagens.
+Oi amigo!
+
+
+Escritor iniciado... digite algo:
+Oi Amigo!
+
+
+Esse exercício demonstra na prática como processos distintos podem comunicar-se de forma simples usando named pipes (FIFOs). 
+É uma forma de IPC (Inter Process Communication) unidirecional, ideal para fluxos simples de dados.
+A prática evidencia a necessidade de sincronização, além de introduzir conceitos de bloqueio 
+e não bloqueio na abertura e utilização de recursos compartilhados.
+
+
+2. Escreva um programa que primeiro cria
+uma FIFO e em seguida cria dois processos
+filho que escrevem uma string na FIFO.
+O pai dá um waitpid em seguida lê as
+strings desse FIFO e exibe na tela
+
+
+// exercicio2.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <string.h>
+
+#define FIFO_NAME "meu_fifo_ex2"
+
+int main() {
+    pid_t pid1, pid2;
+    int fd;
+    char buffer[128];
+
+    // Criando a FIFO
+    if (mkfifo(FIFO_NAME, 0666) == -1) {
+        perror("Erro ao criar FIFO");
+        // Se já existir, continua
+    } else {
+        printf("FIFO criada com sucesso.\n");
+    }
+
+    // Primeiro filho
+    pid1 = fork();
+    if (pid1 == 0) {
+        fd = open(FIFO_NAME, O_WRONLY);
+        if (fd < 0) {
+            perror("Filho 1: erro ao abrir FIFO");
+            exit(1);
+        }
+        char msg1[] = "Mensagem do Filho 1\n";
+        write(fd, msg1, strlen(msg1));
+        close(fd);
+        exit(0);
+    }
+
+    // Segundo filho
+    pid2 = fork();
+    if (pid2 == 0) {
+        fd = open(FIFO_NAME, O_WRONLY);
+        if (fd < 0) {
+            perror("Filho 2: erro ao abrir FIFO");
+            exit(1);
+        }
+        char msg2[] = "Mensagem do Filho 2\n";
+        write(fd, msg2, strlen(msg2));
+        close(fd);
+        exit(0);
+    }
+
+    // Pai espera pelos dois filhos
+    waitpid(pid1, NULL, 0);
+    waitpid(pid2, NULL, 0);
+
+    // Pai lê as mensagens
+    fd = open(FIFO_NAME, O_RDONLY);
+    if (fd < 0) {
+        perror("Pai: erro ao abrir FIFO para leitura");
+        exit(1);
+    }
+
+    printf("Pai: lendo mensagens da FIFO...\n");
+
+    ssize_t n;
+    while ((n = read(fd, buffer, sizeof(buffer)-1)) > 0) {
+        buffer[n] = '\0';
+        printf("Pai recebeu: %s", buffer);
+    }
+
+    close(fd);
+    unlink(FIFO_NAME);  // Remove a FIFO
+    printf("Pai: finalizado.\n");
+
+    return 0;
+}
+
+
+gcc ex2.c -o ex2
+
+./ex2
+
+FIFO criada com sucesso.
+Pai: lendo mensagens da FIFO...
+Pai recebeu: Mensagem do Filho 1
+Pai recebeu: Mensagem do Filho 2
+Pai: finalizado.
+
+Esse exercício mostra como processos podem cooperar usando uma FIFO, sem precisar de memória compartilhada. 
+A sincronização via waitpid garante que o pai só leia após os filhos terminarem, evitando conflitos ou leituras incompletas. 
+É uma solução simples e eficiente para troca de mensagens entre processos.
+
+3. Escreva um servidor e um cliente usando duas
+FIFOs: uma para enviar strings para o servidor,
+e outra para transmitir as respostas de volta
+para os clientes. O servidor deverá rodar em
+background e transformar cada palavra
+recebida de minusculas para maiúsculas. 
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
+
+#define FIFO_CLI_TO_SRV "cli_to_srv_fifo"
+#define FIFO_SRV_TO_CLI "srv_to_cli_fifo"
+#define BUFFER_SIZE 128
+
+int main() {
+    char buffer[BUFFER_SIZE];
+    int fd_write, fd_read;
+
+    printf("Cliente iniciado. Digite uma mensagem: ");
+    fgets(buffer, BUFFER_SIZE, stdin);
+
+    fd_write = open(FIFO_CLI_TO_SRV, O_WRONLY);
+    if (fd_write < 0) {
+        perror("Erro ao abrir FIFO para escrita");
+        exit(1);
+    }
+
+    write(fd_write, buffer, strlen(buffer));
+    close(fd_write);
+
+    fd_read = open(FIFO_SRV_TO_CLI, O_RDONLY);
+    if (fd_read < 0) {
+        perror("Erro ao abrir FIFO para leitura");
+        exit(1);
+    }
+
+    ssize_t n = read(fd_read, buffer, BUFFER_SIZE - 1);
+    if (n > 0) {
+        buffer[n] = '\0';
+        printf("Cliente recebeu: %s", buffer);
+    }
+
+    close(fd_read);
+    return 0;
+}
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <string.h>
+#include <sys/stat.h>
+
+#define FIFO_CLI_TO_SRV "cli_to_srv_fifo"
+#define FIFO_SRV_TO_CLI "srv_to_cli_fifo"
+#define BUFFER_SIZE 128
+
+void str_upper(char *str) {
+    for (int i = 0; str[i]; i++) {
+        str[i] = toupper((unsigned char)str[i]);
+    }
+}
+
+int main() {
+    char buffer[BUFFER_SIZE];
+    int fd_read, fd_write;
+
+    // Cria as FIFOs, se não existirem
+    mkfifo(FIFO_CLI_TO_SRV, 0666);
+    mkfifo(FIFO_SRV_TO_CLI, 0666);
+
+    printf("Servidor iniciado...\n");
+
+    while (1) {
+        fd_read = open(FIFO_CLI_TO_SRV, O_RDONLY);
+        if (fd_read < 0) {
+            perror("Erro ao abrir FIFO de leitura");
+            exit(1);
+        }
+
+        ssize_t n = read(fd_read, buffer, BUFFER_SIZE - 1);
+        if (n > 0) {
+            buffer[n] = '\0';
+            printf("Servidor recebeu: %s", buffer);
+
+            str_upper(buffer);
+
+            fd_write = open(FIFO_SRV_TO_CLI, O_WRONLY);
+            if (fd_write < 0) {
+                perror("Erro ao abrir FIFO de escrita");
+                close(fd_read);
+                continue;
+            }
+
+            write(fd_write, buffer, strlen(buffer));
+            close(fd_write);
+        }
+
+        close(fd_read);
+    }
+
+    // Nunca chega aqui, mas seria bom:
+    unlink(FIFO_CLI_TO_SRV);
+    unlink(FIFO_SRV_TO_CLI);
+
+    return 0;
+}
+
+gcc ex3_cliente.c -o ex3_cliente
+gcc ex3_servidor.c -o ex3_servidor
+
+
+./ex3_cliente
+./ex3_servidor
+
+
+Servidor iniciado...
+Servidor recebeu: hello world
+
+
+Cliente iniciado. Digite uma mensagem: hello world
+Cliente recebeu: HELLO WORLD
+
+
+Esse exercício mostra como implementar um esquema de requisição-resposta entre processos usando FIFOs separadas para cada 
+direção da comunicação.É um modelo simples, mas essencial para entender como construir sistemas cliente-servidor
+ que trocam mensagens de forma síncrona.
+
+
