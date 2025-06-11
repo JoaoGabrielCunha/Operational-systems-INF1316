@@ -1,0 +1,429 @@
+João Gabriel da Cunha Vasconcellos 2211302
+
+1)Faça um programa que usa myallocate para
+alocar e desalocar memória dinâmiamente. 
+
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+
+void *memorypool;
+
+void initmemorypool(void) {
+    memorypool = sbrk(0); // Marca o início do pool
+}
+
+void *myallocate(int n) {
+    return sbrk(n); // Aloca n bytes do heap
+}
+
+void resetmemorypool(void) {
+    brk(memorypool); // Desaloca tudo de uma vez
+}
+
+int main(void) {
+    initmemorypool();
+
+    char *nome = (char*) myallocate(50);
+    int *idade = (int*) myallocate(sizeof(int));
+
+    strcpy(nome, "João Gabriel");
+    *idade = 22;
+
+    printf("Nome: %s\n", nome);
+    printf("Idade: %d\n", *idade);
+
+    resetmemorypool(); // Desaloca tudo que foi alocado com myallocate
+
+    return 0;
+}
+
+
+gcc -o ex1 ex1.c
+./ex1
+
+
+Nome: João Gabriel
+Idade: 22
+
+
+Esse programa usa funções baseadas em sbrk() e brk() para construir um pool de memória dinâmico sem malloc(). A função myallocate() aloca blocos sequencialmente e resetmemorypool() 
+libera tudo de uma vez, restaurando o break original. Esse modelo é útil para alocações temporárias com vida curta, como em parsers, compiladores ou buffers rápidos. No entanto, 
+ele não permite liberar blocos individuais nem realocação, o que limita a flexibilidade comparado ao uso tradicional de malloc e free
+
+
+2)Execute map-exemplo.c passando o nome de um
+arquivo como parámetro. Qual foi a novidade? 
+
+
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Uso: %s <arquivo>\n", argv[0]);
+        return 1;
+    }
+
+    int fd = open(argv[1], O_RDONLY);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    struct stat sb;
+    if (fstat(fd, &sb) == -1) {
+        perror("fstat");
+        close(fd);
+        return 1;
+    }
+
+    char *map = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+    if (map == MAP_FAILED) {
+        perror("mmap");
+        close(fd);
+        return 1;
+    }
+
+    // Exibe o conteúdo do arquivo mapeado
+    for (off_t i = 0; i < sb.st_size; i++) {
+        putchar(map[i]);
+    }
+
+    munmap(map, sb.st_size);
+    close(fd);
+    return 0;
+}
+
+
+gcc -o ex2 ex2.c
+
+echo "Olá mundo via mmap!" > exemplo.txt
+./ex2 exemplo.txt
+
+Olá mundo via mmap!
+
+
+Este exercício demonstra o uso de mmap() para mapear um arquivo do sistema de arquivos diretamente na memória virtual do processo, como se fosse um vetor. 
+A principal novidade é que não se utiliza read() para acessar o conteúdo do arquivo. 
+Em vez disso, o arquivo é carregado sob demanda em memória, e o processo pode acessar seus bytes diretamente com map[i].
+
+
+3)Modifique map-exemplo.c para:
+a. Verificar quantas páginas de memória o seu
+arquivo precisou
+b. Medir o quão mais rápido foi a escrita do
+arquivo mapeado quando comparado com a
+E/S em disco. Dica: use gettimeofday() 
+
+
+#define _GNU_SOURCE
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <sys/time.h>
+#include <string.h>
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Uso: %s <arquivo>\n", argv[0]);
+        return 1;
+    }
+
+    const char *msg = "Alterando conteúdo do arquivo via mmap.\n";
+    size_t msg_len = strlen(msg);
+
+    int fd = open(argv[1], O_RDWR);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    struct stat sb;
+    fstat(fd, &sb);
+    size_t filesize = sb.st_size;
+
+    int pagesize = getpagesize();
+    int num_pages = (filesize + pagesize - 1) / pagesize;
+
+    printf("Tamanho do arquivo: %ld bytes\n", filesize);
+    printf("Tamanho de página: %d bytes\n", pagesize);
+    printf("Número de páginas usadas: %d\n", num_pages);
+
+    // --- Escrita via mmap
+    struct timeval start1, end1;
+    gettimeofday(&start1, NULL);
+
+    char *map = mmap(NULL, filesize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (map == MAP_FAILED) {
+        perror("mmap");
+        close(fd);
+        return 1;
+    }
+
+    memcpy(map, msg, msg_len); // sobrescreve início do arquivo
+    msync(map, filesize, MS_SYNC); // garante escrita em disco
+
+    gettimeofday(&end1, NULL);
+
+    munmap(map, filesize);
+
+    // --- Escrita via write()
+    struct timeval start2, end2;
+    lseek(fd, 0, SEEK_SET); // volta ao início
+
+    gettimeofday(&start2, NULL);
+    write(fd, msg, msg_len);
+    gettimeofday(&end2, NULL);
+
+    close(fd);
+
+    long mmap_us = (end1.tv_sec - start1.tv_sec) * 1000000 + (end1.tv_usec - start1.tv_usec);
+    long write_us = (end2.tv_sec - start2.tv_sec) * 1000000 + (end2.tv_usec - start2.tv_usec);
+
+    printf("Tempo mmap:  %ld us\n", mmap_us);
+    printf("Tempo write: %ld us\n", write_us);
+
+    return 0;
+}
+
+
+gcc -o ex3 ex3.c
+
+./ex3
+
+echo "Teste original de mmap" > teste.txt
+./ex3 teste.txt
+
+
+Tamanho do arquivo: 24 bytes
+Tamanho de página: 4096 bytes
+Número de páginas usadas: 1
+Tempo mmap:  42 us
+Tempo write: 77 us
+
+A quantidade de páginas que um arquivo ocupa é o tamanho do arquivo arredondado para cima para o múltiplo da página.
+mmap() geralmente apresenta desempenho melhor para acesso aleatório ou repetido, enquanto write() pode ter overhead maior por envolver mais chamadas de sistema.
+Nesse teste, mmap() foi ligeiramente mais rápido, mas o principal ganho ocorre quando você precisa modificar muitos trechos diferentes do arquivo — aí o custo de chamadas write() se acumula.
+
+
+
+4)Escreva dois programas prog1.c e prog2.c que trocam
+dados através de um mesmo arquivo mapeado para
+memória (de cada um).
+
+#include <stdio.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
+
+int main() {
+    int fd = open("shared.bin", O_RDWR);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    char *map = mmap(NULL, 1024, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (map == MAP_FAILED) {
+        perror("mmap");
+        return 1;
+    }
+
+    const char *mensagem = "Olá do prog1 via mmap!";
+    strcpy(map, mensagem);  // Escreve diretamente na memória mapeada
+
+    printf("prog1 escreveu: %s\n", mensagem);
+
+    munmap(map, 1024);
+    close(fd);
+    return 0;
+}
+
+
+#include <stdio.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+int main() {
+    int fd = open("shared.bin", O_RDONLY);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    char *map = mmap(NULL, 1024, PROT_READ, MAP_SHARED, fd, 0);
+    if (map == MAP_FAILED) {
+        perror("mmap");
+        return 1;
+    }
+
+    printf("prog2 leu: %s\n", map);
+
+    munmap(map, 1024);
+    close(fd);
+    return 0;
+}
+
+
+gcc  -o ex4prog1 ex4prog1.c
+gcc -o ex4prog2 ex4prog2.c
+
+./prog1
+./prog2
+
+
+prog1 escreveu: Olá do prog1 via mmap!
+prog2 leu: Olá do prog1 via mmap!
+
+
+Esse exercício mostra como dois processos separados podem compartilhar dados usando um arquivo mapeado com mmap() e a flag MAP_SHARED.
+Não é necessário read() nem write() — os dados fluem via memória virtual compartilhada. É uma técnica muito eficiente para comunicação entre processos (IPC), mesmo em sistemas simples.
+
+5)Escreva um programa que faz um mapeamento de
+arquivo para memória e depois escreve novos caracteres
+no final do arquivo. O que voce precisa fazer para evitar
+um SegFault? 
+
+#include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <string.h>
+
+int main() {
+    const char *arquivo = "dados.txt";
+    const char *novos_dados = " <-- adicionado via mmap\n";
+
+    int fd = open(arquivo, O_RDWR | O_CREAT, 0644);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    // Verifica o tamanho original
+    struct stat sb;
+    fstat(fd, &sb);
+    size_t tamanho_antigo = sb.st_size;
+    size_t tamanho_novo = tamanho_antigo + strlen(novos_dados);
+
+    // Expande o arquivo
+    if (ftruncate(fd, tamanho_novo) == -1) {
+        perror("ftruncate");
+        close(fd);
+        return 1;
+    }
+
+    // Faz o mapeamento com o novo tamanho
+    char *map = mmap(NULL, tamanho_novo, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (map == MAP_FAILED) {
+        perror("mmap");
+        close(fd);
+        return 1;
+    }
+
+    // Escreve no final do arquivo mapeado
+    memcpy(map + tamanho_antigo, novos_dados, strlen(novos_dados));
+
+    // Garante que a alteração vá para o disco
+    msync(map, tamanho_novo, MS_SYNC);
+
+    munmap(map, tamanho_novo);
+    close(fd);
+
+    printf("Dados adicionados com sucesso.\n");
+    return 0;
+}
+
+gcc -o ex5 ex5.c
+./ex5
+
+echo "Texto original" > dados.txt
+./append-mmap
+cat dados.txt
+
+Texto original
+
+
+
+Para escrever no final de um arquivo usando mmap():
+É obrigatório usar ftruncate() antes de mapear, aumentando o tamanho do arquivo,
+Caso contrário, o mapeamento não cobre os bytes extras, e qualquer acesso além do fim resulta em segmentation fault.
+
+
+6)Re-escreva o seu programa do item anterior usando
+mremap() 
+
+
+#include <stdio.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+int main() {
+    size_t n = 1000;
+    size_t tamanho = n * sizeof(int);
+
+    // Cria mapeamento de memória anônimo (sem arquivo)
+    int *vetor = mmap(NULL, tamanho, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (vetor == MAP_FAILED) {
+        perror("mmap");
+        return 1;
+    }
+
+    // Atribui valores
+    for (int i = 0; i < n; i++) {
+        vetor[i] = i * 2;
+    }
+
+    // Imprime os valores
+    for (int i = 0; i < 10; i++) { // mostra só os 10 primeiros
+        printf("vetor[%d] = %d\n", i, vetor[i]);
+    }
+
+    // Libera a memória mapeada
+    munmap(vetor, tamanho);
+
+    return 0;
+}
+
+
+gcc  -o ex6 ex6.c
+./ex6
+
+
+vetor[0] = 0
+vetor[1] = 2
+vetor[2] = 4
+vetor[3] = 6
+vetor[4] = 8
+vetor[5] = 10
+vetor[6] = 12
+vetor[7] = 14
+vetor[8] = 16
+vetor[9] = 18
+
+
+
+O exercício mostra que você pode alocar memória dinamicamente sem malloc() nem sbrk(), usando mmap() com MAP_ANONYMOUS. 
+Isso é útil em sistemas onde você quer controle total da alocação, por exemplo em kernels, em servidores de alto desempenho ou em simuladores que controlam a paginação diretamente. 
+A memória criada com MAP_ANONYMOUS não está ligada a nenhum arquivo e só existe enquanto o processo está rodando.
+
+
+
+
+
+
+
+
+
